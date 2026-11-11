@@ -55,7 +55,7 @@ import {
   isIframeLikeElement,
   isLinearElement,
 } from "./typeChecks";
-import { getCornerRadius, isPathALoop } from "./utils";
+import { getCornerRadius, getDiamondCornerOffsets, isPathALoop } from "./utils";
 import { headingForPointIsHorizontal } from "./heading";
 
 import { canChangeRoundness } from "./comparisons";
@@ -895,11 +895,10 @@ const _generateElementShape = (
       const [topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY] =
         getDiamondPoints(element);
       if (element.roundness) {
-        const verticalRadius = getCornerRadius(Math.abs(topX - leftX), element);
-
-        const horizontalRadius = getCornerRadius(
-          Math.abs(rightY - topY),
+        const [verticalRadius, horizontalRadius] = getDiamondCornerOffsets(
           element,
+          Math.abs(topX - leftX),
+          Math.abs(rightY - topY),
         );
 
         shape = generator.path(

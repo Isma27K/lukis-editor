@@ -7,6 +7,7 @@ import {
   COLOR_PALETTE,
   DEFAULT_ELEMENT_BACKGROUND_COLOR_PALETTE,
   ARROW_TYPE,
+  DEFAULT_ADAPTIVE_RADIUS,
   DEFAULT_FONT_FAMILY,
   DEFAULT_FONT_SIZE,
   FONT_FAMILY,
@@ -61,6 +62,7 @@ import {
   isStickyNoteElement,
   isTextElement,
   isUsingAdaptiveRadius,
+  canHaveRoundnessValue,
 } from "@excalidraw/element";
 
 import {
@@ -1769,6 +1771,11 @@ export const actionChangeRoundness = register<"sharp" | "round">({
           return el;
         }
 
+        // [lukis] Rounding a shape again keeps its own radius, or else
+        // takes the one last picked.
+        const radius = canHaveRoundnessValue(el.type)
+          ? el.roundness?.value ?? appState.currentItemRoundnessValue
+          : null;
         const nextElement = newElementWith(el, {
           roundness:
             value === "round"
@@ -1776,6 +1783,7 @@ export const actionChangeRoundness = register<"sharp" | "round">({
                   type: isUsingAdaptiveRadius(el.type)
                     ? ROUNDNESS.ADAPTIVE_RADIUS
                     : ROUNDNESS.PROPORTIONAL_RADIUS,
+                  ...(radius != null && { value: radius }),
                 }
               : null,
         });
@@ -1835,7 +1843,75 @@ export const actionChangeRoundness = register<"sharp" | "round">({
           />
           {renderAction("togglePolygon")}
         </div>
+        {renderAction("changeRoundnessValue")}
       </fieldset>
+    );
+  },
+});
+
+// [lukis] The slider's range, in scene pixels. Shapes cap the radius at half
+// their shorter side, so the top end makes most of them pills.
+const ROUNDNESS_VALUE_MAX = 120;
+const ROUNDNESS_VALUE_STEP = 4;
+
+const hasAdjustableRoundness = (element: ExcalidrawElement) =>
+  !!element.roundness &&
+  element.roundness.type !== ROUNDNESS.LEGACY &&
+  canHaveRoundnessValue(element.type);
+
+// [lukis] An exact corner radius for round rectangles, images, embeds and
+// diamonds, shown under "Edges" while they're round.
+export const actionChangeRoundnessValue = register<number>({
+  name: "changeRoundnessValue",
+  label: "labels.radius",
+  trackEvent: false,
+  perform: (elements, appState, value) => {
+    return {
+      elements: changeProperty(elements, appState, (el) =>
+        hasAdjustableRoundness(el) && el.roundness
+          ? newElementWith(el, {
+              roundness: { type: el.roundness.type, value },
+            })
+          : el,
+      ),
+      appState: { ...appState, currentItemRoundnessValue: value },
+      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+    };
+  },
+  PanelComponent: ({ elements, appState, app, updateData }) => {
+    const targetElements = getTargetElements(
+      getNonDeletedElements(elements),
+      appState,
+    );
+    const adjustable = targetElements.length
+      ? targetElements.some(hasAdjustableRoundness)
+      : appState.currentItemRoundness === "round" &&
+        canHaveRoundnessValue(appState.activeTool.type);
+    if (!adjustable) {
+      return null;
+    }
+
+    const fallback =
+      appState.currentItemRoundnessValue ?? DEFAULT_ADAPTIVE_RADIUS;
+    const radius = getFormValue<number | null>(
+      elements,
+      app,
+      (element) => element.roundness?.value ?? DEFAULT_ADAPTIVE_RADIUS,
+      hasAdjustableRoundness,
+      (hasSelection) => (hasSelection ? null : fallback),
+    );
+
+    return (
+      <Range
+        label={t("labels.radius")}
+        value={Math.min(radius ?? fallback, ROUNDNESS_VALUE_MAX)}
+        hasCommonValue={radius !== null}
+        onChange={updateData}
+        min={0}
+        max={ROUNDNESS_VALUE_MAX}
+        step={ROUNDNESS_VALUE_STEP}
+        testId="roundness-value"
+      />
     );
   },
 });

@@ -50,6 +50,7 @@ import {
   isLinearElement,
   isLineElement,
   isUsingAdaptiveRadius,
+  canHaveRoundnessValue,
 } from "./typeChecks";
 import { LinearElementEditor } from "./linearElementEditor";
 
@@ -556,12 +557,16 @@ export const convertToShape = (
       return fx1 <= minX && fy1 <= minY && fx2 >= maxX && fy2 >= maxY;
     })?.id ?? null;
 
+  const radius = appState.currentItemRoundnessValue;
   const roundness =
     appState.currentItemRoundness === "round"
       ? {
           type: isUsingAdaptiveRadius(recognizedShape.type)
             ? ROUNDNESS.ADAPTIVE_RADIUS
             : ROUNDNESS.PROPORTIONAL_RADIUS,
+          // [lukis] the radius last picked in the panel
+          ...(radius != null &&
+            canHaveRoundnessValue(recognizedShape.type) && { value: radius }),
         }
       : null;
 

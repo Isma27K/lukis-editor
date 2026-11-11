@@ -41,7 +41,11 @@ import { generateLinearCollisionShape } from "./shape";
 
 import { hitElementItself, isPointInElement } from "./collision";
 import { LinearElementEditor } from "./linearElementEditor";
-import { isElbowArrow, isRectangularElement } from "./typeChecks";
+import {
+  canHaveRoundnessValue,
+  isElbowArrow,
+  isRectangularElement,
+} from "./typeChecks";
 import { getBindingGap, maxBindingDistance_simple } from "./binding";
 
 import {
@@ -380,12 +384,13 @@ export function getDiamondBaseCorners(
 ): Curve<GlobalPoint>[] {
   const [topX, topY, rightX, rightY, bottomX, bottomY, leftX, leftY] =
     getDiamondPoints(element);
-  const verticalRadius = element.roundness
-    ? getCornerRadius(Math.abs(topX - leftX), element)
-    : (topX - leftX) * 0.01;
-  const horizontalRadius = element.roundness
-    ? getCornerRadius(Math.abs(rightY - topY), element)
-    : (rightY - topY) * 0.01;
+  const [verticalRadius, horizontalRadius] = element.roundness
+    ? getDiamondCornerOffsets(
+        element,
+        Math.abs(topX - leftX),
+        Math.abs(rightY - topY),
+      )
+    : [(topX - leftX) * 0.01, (rightY - topY) * 0.01];
 
   const [top, right, bottom, left]: GlobalPoint[] = [
     pointFrom(element.x + topX, element.y + topY),
@@ -525,7 +530,26 @@ export const isPathALoop = (
   return false;
 };
 
+/**
+ * The corner radius for a side of length `x` (for diamonds, half a diagonal).
+ *
+ * [lukis] An explicit `roundness.value` is that radius in scene pixels, up to
+ * half the side (a pill, or for diamonds curves meeting mid-edge). Without
+ * one, rounding is upstream's: 25% of the side, or for adaptive shapes 32px
+ * once the side is long enough.
+ */
 export const getCornerRadius = (x: number, element: ExcalidrawElement) => {
+  const value = element.roundness?.value;
+  if (
+    element.roundness &&
+    element.roundness.type !== ROUNDNESS.LEGACY &&
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    canHaveRoundnessValue(element.type)
+  ) {
+    return clamp(value, 0, Math.max(0, x / 2));
+  }
+
   if (
     element.roundness?.type === ROUNDNESS.PROPORTIONAL_RADIUS ||
     element.roundness?.type === ROUNDNESS.LEGACY
@@ -546,6 +570,41 @@ export const getCornerRadius = (x: number, element: ExcalidrawElement) => {
   }
 
   return 0;
+};
+
+/**
+ * [lukis] How far a diamond's rounding starts from each corner, as offsets
+ * along x and y: `[x, y]` for a diamond whose corners sit `halfWidth` and
+ * `halfHeight` from its center.
+ *
+ * An explicit `roundness.value` is a distance along the edge, split by the
+ * edge's slope so the rounding stays on the edge for any proportions, up to
+ * half the edge (curves meeting mid-edge). Otherwise it's upstream's 25% of
+ * each half.
+ */
+export const getDiamondCornerOffsets = (
+  element: ExcalidrawElement,
+  halfWidth: number,
+  halfHeight: number,
+): [number, number] => {
+  const value = element.roundness?.value;
+  if (
+    element.roundness &&
+    element.roundness.type !== ROUNDNESS.LEGACY &&
+    typeof value === "number" &&
+    Number.isFinite(value)
+  ) {
+    const edge = Math.hypot(halfWidth, halfHeight);
+    if (edge === 0) {
+      return [0, 0];
+    }
+    const radius = clamp(value, 0, edge / 2);
+    return [(radius * halfWidth) / edge, (radius * halfHeight) / edge];
+  }
+  return [
+    getCornerRadius(halfWidth, element),
+    getCornerRadius(halfHeight, element),
+  ];
 };
 
 const getDiagonalsForBindableElement = (

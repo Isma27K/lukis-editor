@@ -465,6 +465,11 @@ export interface AppState {
   currentItemEndArrowhead: Arrowhead | null;
   currentHoveredFontFamily: FontFamilyValues | null;
   currentItemRoundness: StrokeRoundness;
+  /**
+   * [lukis] Corner radius in scene pixels given to new round shapes that
+   * support one (see `canHaveRoundnessValue`); null for the default.
+   */
+  currentItemRoundnessValue: number | null;
   currentItemArrowType: "sharp" | "round" | "elbow";
   viewBackgroundColor: string;
   scrollX: number;

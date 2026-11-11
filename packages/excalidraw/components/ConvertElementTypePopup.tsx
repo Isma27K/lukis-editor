@@ -16,6 +16,7 @@ import {
   isElbowArrow,
   isLinearElement,
   isUsingAdaptiveRadius,
+  canHaveRoundnessValue,
 } from "@excalidraw/element";
 
 import {
@@ -870,6 +871,11 @@ const convertElementType = <
               type: isUsingAdaptiveRadius(targetType)
                 ? ROUNDNESS.ADAPTIVE_RADIUS
                 : ROUNDNESS.PROPORTIONAL_RADIUS,
+              // [lukis] a rectangle turned diamond keeps its radius
+              ...(element.roundness.value != null &&
+                canHaveRoundnessValue(targetType) && {
+                  value: element.roundness.value,
+                }),
             }
           : element.roundness,
       }),

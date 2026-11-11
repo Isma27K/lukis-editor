@@ -127,6 +127,7 @@ import {
   isLinearElement,
   isLinearElementType,
   isUsingAdaptiveRadius,
+  canHaveRoundnessValue,
   isIframeElement,
   isIframeLikeElement,
   isMagicFrameElement,
@@ -8795,11 +8796,15 @@ class App extends React.Component<AppProps, AppState> {
       | "iframe"
       | "embeddable",
   ) {
+    const radius = this.state.currentItemRoundnessValue;
     return this.state.currentItemRoundness === "round"
       ? {
           type: isUsingAdaptiveRadius(elementType)
             ? ROUNDNESS.ADAPTIVE_RADIUS
             : ROUNDNESS.PROPORTIONAL_RADIUS,
+          // [lukis] the radius last picked in the panel
+          ...(radius != null &&
+            canHaveRoundnessValue(elementType) && { value: radius }),
         }
       : null;
   }

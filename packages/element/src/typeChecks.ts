@@ -325,6 +325,13 @@ export const isUsingAdaptiveRadius = (type: string) =>
   type === "iframe" ||
   type === "image";
 
+/**
+ * [lukis] Element types whose corner radius can be set exactly, in scene
+ * pixels, through `roundness.value` (see `getCornerRadius`).
+ */
+export const canHaveRoundnessValue = (type: string) =>
+  isUsingAdaptiveRadius(type) || type === "diamond";
+
 export const isUsingProportionalRadius = (type: string) =>
   type === "line" ||
   type === "arrow" ||
